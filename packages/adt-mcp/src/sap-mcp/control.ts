@@ -21,6 +21,13 @@ export function generateMcpToken(): string {
   return randomUUID()
 }
 
+export function buildDestinationAllowlist(ids: string[]): NonNullable<McpStartParams['allowlist']> {
+  if (ids.some((id) => !id.trim() || /[,*?\r\n]/.test(id))) {
+    throw new Error('Destination IDs cannot contain allowlist patterns or separators')
+  }
+  return { destinations: ids.join(','), packages: '', namespaces: '*' }
+}
+
 /** `adtLs/mcp/startMCPServer` — boot the embedded Jetty HTTP MCP on localhost. */
 export async function startMcpServer(
   connection: MessageConnection,
@@ -83,7 +90,9 @@ export async function drainHttpResponse(res: Response): Promise<void> {
 
 /** True when the HTTP MCP listener is bound (any HTTP response, no MCP session created). */
 export async function probeMcpHttp(port: number, token?: string): Promise<boolean> {
-  const headers: Record<string, string> = { 'User-Agent': 'openadt-mcp-client' }
+  const headers: Record<string, string> = {
+    'User-Agent': 'openadt-mcp-client',
+  }
   if (token) {
     headers.Authorization = `Bearer ${token}`
   }

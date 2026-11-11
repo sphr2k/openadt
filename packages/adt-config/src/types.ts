@@ -57,6 +57,7 @@ export type DestinationsInitParams = {
 export type McpStartParams = {
   port: number
   token: string
+  allowlist?: { destinations: string; packages: string; namespaces: string }
 }
 
 export type McpStartResult = {

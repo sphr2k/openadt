@@ -41,11 +41,11 @@ product. It complements:
 `openadt-mcp` is a **unified MCP mesh** that merges two tool groups behind one
 endpoint, plus a set of OpenADT-authored workflow prompts:
 
-| Group          | Source                                                                | Count    | Backend                                |
-| -------------- | --------------------------------------------------------------------- | -------- | -------------------------------------- |
-| `abap_*`       | Official SAP ADT MCP (HTTP `/mcp` inside `adt-lsc`)                    | Grows    | Proxied transparently                  |
-| `adt_*`        | OpenADT-owned LSP tools (lock, format, refs, ATC, transport, …)       | 26       | In-process over the same `adt-lsc` LSP |
-| `prompts/*`    | OpenADT-authored workflow prompts (RAP, OData, tests, …)              | 4        | Local markdown                         |
+| Group       | Source                                                          | Count | Backend                                |
+| ----------- | --------------------------------------------------------------- | ----- | -------------------------------------- |
+| `abap_*`    | Official SAP ADT MCP (HTTP `/mcp` inside `adt-lsc`)             | Grows | Proxied transparently                  |
+| `adt_*`     | OpenADT-owned LSP tools (lock, format, refs, ATC, transport, …) | 26    | In-process over the same `adt-lsc` LSP |
+| `prompts/*` | OpenADT-authored workflow prompts (RAP, OData, tests, …)        | 4     | Local markdown                         |
 
 A single owned `adt-lsc` child backs both tool groups. The mesh speaks
 **stdio** (default — what IDEs and CLI agents want) or **HTTP** (`--http` —
@@ -63,12 +63,12 @@ Java package; if you have both, they share `~/.openadt/` state and
 `openadt-mcp` is published as four platform archives per release
 (`openadt-mcp-X.Y.Z-{platform}.{zip|tar.gz}`):
 
-| Platform      | Archive                                                |
-| ------------- | ------------------------------------------------------ |
-| `win-x64`     | `openadt-mcp-X.Y.Z-win-x64.zip`                        |
-| `linux-x64`   | `openadt-mcp-X.Y.Z-linux-x64.tar.gz`                   |
-| `darwin-arm64`| `openadt-mcp-X.Y.Z-darwin-arm64.tar.gz`                |
-| `darwin-x64`  | `openadt-mcp-X.Y.Z-darwin-x64.tar.gz`                  |
+| Platform       | Archive                                 |
+| -------------- | --------------------------------------- |
+| `win-x64`      | `openadt-mcp-X.Y.Z-win-x64.zip`         |
+| `linux-x64`    | `openadt-mcp-X.Y.Z-linux-x64.tar.gz`    |
+| `darwin-arm64` | `openadt-mcp-X.Y.Z-darwin-arm64.tar.gz` |
+| `darwin-x64`   | `openadt-mcp-X.Y.Z-darwin-x64.tar.gz`   |
 
 Scoop and Homebrew pin the matching version of `openadt-mcp` to the
 corresponding `openadt` release. Bun is **bundled** — no separate runtime
@@ -229,20 +229,20 @@ openadt-mcp serve --shared
 openadt-mcp serve --destination ABC_100_USER_EN
 ```
 
-| Flag                       | Default                          | Meaning                                                                          |
-| -------------------------- | -------------------------------- | -------------------------------------------------------------------------------- |
-| `--http`                   | off (stdio)                      | Serve the mesh over Streamable HTTP `/mcp` instead of stdio                      |
-| `--port N`                 | `2236`                           | Mesh HTTP port (`--http`); else the SAP backend port                            |
-| `--workspace DIR`          | `~/.openadt/adt-ls-workspace`    | `adt-lsc` `-data` directory                                                      |
-| `--lsp` / `--no-lsp`       | `--lsp`                          | Include / exclude the OpenADT `adt_*` group (own mode)                          |
-| `--proxy` / `--no-proxy`   | `--proxy`                        | Include / exclude the SAP `abap_*` group                                         |
-| `--sap-port N`             | —                                | Attach to an external SAP MCP on this port                                       |
-| `--sap-token T`            | endpoint store                   | Bearer token for `--sap-port`                                                    |
-| `--shared`                 | off                              | Reuse a healthy shared daemon from the endpoint store                            |
-| `--destination ID`         | —                                | Pre-logon + `setDestination` for one destination                                 |
-| `--logon-timeout`          | `300`                            | Seconds for `ensureLoggedOn`                                                     |
-| `--show-token`             | off                              | Print the Bearer token to stdout (with `--http`)                                |
-| `--verbose` / `-v`         | off                              | LSP trace → `~/.openadt/logs/mcp-serve.log`                                      |
+| Flag                     | Default                       | Meaning                                                     |
+| ------------------------ | ----------------------------- | ----------------------------------------------------------- |
+| `--http`                 | off (stdio)                   | Serve the mesh over Streamable HTTP `/mcp` instead of stdio |
+| `--port N`               | `2236`                        | Mesh HTTP port (`--http`); else the SAP backend port        |
+| `--workspace DIR`        | `~/.openadt/adt-ls-workspace` | `adt-lsc` `-data` directory                                 |
+| `--lsp` / `--no-lsp`     | `--lsp`                       | Include / exclude the OpenADT `adt_*` group (own mode)      |
+| `--proxy` / `--no-proxy` | `--proxy`                     | Include / exclude the SAP `abap_*` group                    |
+| `--sap-port N`           | —                             | Attach to an external SAP MCP on this port                  |
+| `--sap-token T`          | endpoint store                | Bearer token for `--sap-port`                               |
+| `--shared`               | off                           | Reuse a healthy shared daemon from the endpoint store       |
+| `--destination ID`       | —                             | Pre-logon + `setDestination` for one destination            |
+| `--logon-timeout`        | `300`                         | Seconds for `ensureLoggedOn`                                |
+| `--show-token`           | off                           | Print the Bearer token to stdout (with `--http`)            |
+| `--verbose` / `-v`       | off                           | LSP trace → `~/.openadt/logs/mcp-serve.log`                 |
 
 Destinations are **auto-derived** from `~/.adtls/destinations.json`; there
 is no `--import` flag — point `--workspace` at the data directory and
@@ -295,15 +295,15 @@ destination store location and registered destination ids. Use this when a
 
 ### Exit codes
 
-| Code | Meaning                                                            |
-| ---- | ------------------------------------------------------------------ |
-| 0    | Success                                                            |
-| 1    | General error (extension missing, logon timeout/failure, etc.)     |
-| 3    | HTTP MCP never became ready within the timeout                     |
-| 4    | Port already in use                                                |
-| 5    | Multiple active endpoints and no `--port` given                    |
-| 6    | Ensure lock timeout (shared-mode spawn deadlock)                   |
-| 7    | Daemon spawn failed (shared mode)                                  |
+| Code | Meaning                                                        |
+| ---- | -------------------------------------------------------------- |
+| 0    | Success                                                        |
+| 1    | General error (extension missing, logon timeout/failure, etc.) |
+| 3    | HTTP MCP never became ready within the timeout                 |
+| 4    | Port already in use                                            |
+| 5    | Multiple active endpoints and no `--port` given                |
+| 6    | Ensure lock timeout (shared-mode spawn deadlock)               |
+| 7    | Daemon spawn failed (shared mode)                              |
 
 ---
 
@@ -311,10 +311,10 @@ destination store location and registered destination ids. Use this when a
 
 ### Transports
 
-| Transport                | Who connects                   | Wire format                                            |
-| ------------------------ | ------------------------------ | ------------------------------------------------------ |
-| `serve` (stdio, default) | Agent / IDE with stdio MCP     | Content-Length / NDJSON on stdin/stdout                |
-| `serve --http`           | Agent / IDE with HTTP MCP      | `POST http://localhost:<port>/mcp` + Bearer            |
+| Transport                | Who connects               | Wire format                                 |
+| ------------------------ | -------------------------- | ------------------------------------------- |
+| `serve` (stdio, default) | Agent / IDE with stdio MCP | Content-Length / NDJSON on stdin/stdout     |
+| `serve --http`           | Agent / IDE with HTTP MCP  | `POST http://localhost:<port>/mcp` + Bearer |
 
 The stdio bridge is a transparent proxy: it forwards **every** client
 JSON-RPC request to HTTP MCP (including `initialize`, `tools/list`,
@@ -328,11 +328,11 @@ The SAP `abap_*` group can come from three sources. The OpenADT `adt_*`
 group needs the owned LSP connection, so it is available in **own** mode
 only:
 
-| Mode              | Trigger                              | `adt-lsc`      | `adt_*` | `abap_*` |
-| ----------------- | ------------------------------------ | -------------- | ------- | -------- |
-| **own** (default) | `serve`                              | spawned, owned | yes     | yes      |
-| **attach**        | `serve --sap-port N [--sap-token]`   | external       | no      | yes      |
-| **shared**        | `serve --shared`                     | shared daemon  | no      | yes      |
+| Mode              | Trigger                            | `adt-lsc`      | `adt_*` | `abap_*` |
+| ----------------- | ---------------------------------- | -------------- | ------- | -------- |
+| **own** (default) | `serve`                            | spawned, owned | yes     | yes      |
+| **attach**        | `serve --sap-port N [--sap-token]` | external       | no      | yes      |
+| **shared**        | `serve --shared`                   | shared daemon  | no      | yes      |
 
 In **shared** mode, `serve --stdio` finds or spawns a detached daemon
 (one `adt-lsc` per workspace) and attaches a lightweight stdio bridge.
@@ -377,45 +377,45 @@ the standard ADT format (e.g. `/sap/bc/adt/oo/classes/zcl_hello`).
 
 #### High priority
 
-| Tool                       | Description                                       | LSP method                                    |
-| -------------------------- | ------------------------------------------------- | --------------------------------------------- |
-| `adt_get_check_variants`   | List ATC check variants on the destination        | `adtLs/atc/getCheckVariants`                  |
-| `adt_run_check`            | Run ATC check on one or more ADT URIs             | `adtLs/atc/runCheck`                          |
-| `adt_lock_file`            | Lock an ADT object for editing                    | `adtLs/fileSystem/lockFile`                   |
-| `adt_unlock_file`          | Release the lock on an ADT object                 | `adtLs/fileSystem/unlockFile`                 |
-| `adt_get_file_lock_status` | Get the current lock status of an object          | `adtLs/fileSystem/getFileLockStatus`          |
-| `adt_format`               | Pretty-print ABAP / DDL / DDLA / SRVD / BSCE      | `textDocument/formatting` (open-doc lifecycle) |
-| `adt_diagnostic`           | Syntax + check errors for an ADT object           | `textDocument/diagnostic` (open-doc lifecycle) |
-| `adt_find_references`      | Find all usages of a symbol                       | `textDocument/references` (open-doc lifecycle) |
-| `adt_toggle_version`       | Toggle between active and inactive version        | `adtLs/fileSystem/toggleVersion`              |
-| `adt_check_transport_lock` | Check the transport associated with an object lock | `adtLs/cts/transport/checkTransportForObjectLock` |
-| `adt_create_transport`     | Create a workbench/customizing transport          | `adtLs/cts/transport/createTransportForObjectLock`|
-| `adt_assign_transport`     | Assign a transport to an ADT object               | `adtLs/cts/transport/assignTransportToObject`     |
-| `adt_quick_search`         | RIS quick search in the repository                | `adtLs/repository/quickSearch`                |
+| Tool                       | Description                                        | LSP method                                         |
+| -------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| `adt_get_check_variants`   | List ATC check variants on the destination         | `adtLs/atc/getCheckVariants`                       |
+| `adt_run_check`            | Run ATC check on one or more ADT URIs              | `adtLs/atc/runCheck`                               |
+| `adt_lock_file`            | Lock an ADT object for editing                     | `adtLs/fileSystem/lockFile`                        |
+| `adt_unlock_file`          | Release the lock on an ADT object                  | `adtLs/fileSystem/unlockFile`                      |
+| `adt_get_file_lock_status` | Get the current lock status of an object           | `adtLs/fileSystem/getFileLockStatus`               |
+| `adt_format`               | Pretty-print ABAP / DDL / DDLA / SRVD / BSCE       | `textDocument/formatting` (open-doc lifecycle)     |
+| `adt_diagnostic`           | Syntax + check errors for an ADT object            | `textDocument/diagnostic` (open-doc lifecycle)     |
+| `adt_find_references`      | Find all usages of a symbol                        | `textDocument/references` (open-doc lifecycle)     |
+| `adt_toggle_version`       | Toggle between active and inactive version         | `adtLs/fileSystem/toggleVersion`                   |
+| `adt_check_transport_lock` | Check the transport associated with an object lock | `adtLs/cts/transport/checkTransportForObjectLock`  |
+| `adt_create_transport`     | Create a workbench/customizing transport           | `adtLs/cts/transport/createTransportForObjectLock` |
+| `adt_assign_transport`     | Assign a transport to an ADT object                | `adtLs/cts/transport/assignTransportToObject`      |
+| `adt_quick_search`         | RIS quick search in the repository                 | `adtLs/repository/quickSearch`                     |
 
 #### Medium priority
 
-| Tool                          | Description                                | LSP method                              |
-| ----------------------------- | ------------------------------------------ | --------------------------------------- |
-| `adt_get_inactive_objects`    | List inactive objects in the request       | `adtLs/activation/getInactiveObjects`   |
-| `adt_run_application`         | Run a class or program in console mode     | `adtLs/applicationRun/runApplication`   |
-| `adt_get_hover`               | Markdown documentation for a code element | `textDocument/hover` (open-doc lifecycle)|
-| `adt_document_symbols`        | Hierarchical document outline              | `textDocument/documentSymbol` (open-doc)|
-| `adt_search_transports_simple`| Simple transport search                    | `adtLs/cts/transport/searchTransportsSimple`|
-| `adt_search_transports`       | Advanced transport search with all filters | `adtLs/cts/transport/searchTransports`      |
-| `adt_get_coverage`            | Get code coverage data for a run           | `adtLs/coverage/getCoverage`            |
-| `adt_load_statement_results`  | Load statement-level coverage             | `adtLs/coverage/loadStatementResults`   |
+| Tool                           | Description                                | LSP method                                   |
+| ------------------------------ | ------------------------------------------ | -------------------------------------------- |
+| `adt_get_inactive_objects`     | List inactive objects in the request       | `adtLs/activation/getInactiveObjects`        |
+| `adt_run_application`          | Run a class or program in console mode     | `adtLs/applicationRun/runApplication`        |
+| `adt_get_hover`                | Markdown documentation for a code element  | `textDocument/hover` (open-doc lifecycle)    |
+| `adt_document_symbols`         | Hierarchical document outline              | `textDocument/documentSymbol` (open-doc)     |
+| `adt_search_transports_simple` | Simple transport search                    | `adtLs/cts/transport/searchTransportsSimple` |
+| `adt_search_transports`        | Advanced transport search with all filters | `adtLs/cts/transport/searchTransports`       |
+| `adt_get_coverage`             | Get code coverage data for a run           | `adtLs/coverage/getCoverage`                 |
+| `adt_load_statement_results`   | Load statement-level coverage              | `adtLs/coverage/loadStatementResults`        |
 
 #### Low priority
 
-| Tool                     | Description                                       | LSP method                            |
-| ------------------------ | ------------------------------------------------- | ------------------------------------- |
-| `adt_force_refresh`      | Force refresh of an object from the server        | `adtLs/fileSystem/forceRefresh`       |
-| `adt_get_object_name`    | Extract the object name from an ADT URI           | `adtLs/fileSystem/getObjectName`      |
-| `adt_get_package_name`   | Extract the package name from an ADT URI          | `adtLs/fileSystem/getPackageName`     |
-| `adt_get_folder_uri`     | Compute the folder URI for navigation             | `adtLs/fileSystem/getFolderUri`       |
-| `adt_get_external_links` | Return external links (e.g. ADT for Eclipse)      | `adtLs/fileSystem/getExternalLinks`   |
-| `adt_get_ls_uri`         | ADT path → repotree/AFF URI (required by others)  | `adtLs/repository/getLsUri`           |
+| Tool                     | Description                                      | LSP method                          |
+| ------------------------ | ------------------------------------------------ | ----------------------------------- |
+| `adt_force_refresh`      | Force refresh of an object from the server       | `adtLs/fileSystem/forceRefresh`     |
+| `adt_get_object_name`    | Extract the object name from an ADT URI          | `adtLs/fileSystem/getObjectName`    |
+| `adt_get_package_name`   | Extract the package name from an ADT URI         | `adtLs/fileSystem/getPackageName`   |
+| `adt_get_folder_uri`     | Compute the folder URI for navigation            | `adtLs/fileSystem/getFolderUri`     |
+| `adt_get_external_links` | Return external links (e.g. ADT for Eclipse)     | `adtLs/fileSystem/getExternalLinks` |
+| `adt_get_ls_uri`         | ADT path → repotree/AFF URI (required by others) | `adtLs/repository/getLsUri`         |
 
 #### Open-document lifecycle
 
@@ -472,12 +472,12 @@ Error codes: `LOCKED_BY_OTHER`, `NO_TRANSPORT`, `NOT_FOUND`, `INVALID_URI`,
 
 OpenADT ships four workflow prompts over `prompts/list` / `prompts/get`:
 
-| Prompt                  | Purpose                                                    |
-| ----------------------- | ---------------------------------------------------------- |
-| `create-abap-object`    | Create a new ABAP class / interface / program / table      |
-| `generate-rap-service`  | Generate a RAP service binding for a target package       |
-| `expose-odata-service`  | Inspect or expose an OData service binding                |
-| `activate-and-test`     | Activate the request and run ABAP Unit tests               |
+| Prompt                 | Purpose                                               |
+| ---------------------- | ----------------------------------------------------- |
+| `create-abap-object`   | Create a new ABAP class / interface / program / table |
+| `generate-rap-service` | Generate a RAP service binding for a target package   |
+| `expose-odata-service` | Inspect or expose an OData service binding            |
+| `activate-and-test`    | Activate the request and run ABAP Unit tests          |
 
 Disable the prompts (and the appended SAP cheat-sheet on
 `initialize.instructions`) with `OPENADT_MCP_NO_GUIDANCE=1`.
@@ -677,6 +677,26 @@ openadt-mcp serve --stdio --verbose
 # trace → ~/.openadt/logs/mcp-serve.log
 ```
 
+For headless HTTP destinations using SAP reentrance-ticket authentication,
+set both `OPENADT_SAP_LOGON_USERNAME` and `OPENADT_SAP_LOGON_PASSWORD` in the
+MCP server process environment (prefer a secret manager). OpenADT then sends
+Basic authentication only to the HTTPS ticket endpoint and forwards the
+one-time ticket to the local ADT-LS callback. It does not use OAuth Authorization
+Code. If the URL omits `sap-client`, OpenADT uses the client from the matching
+destination. If either variable is absent, OpenADT opens the login URL in the system
+browser as before.
+
+The SAP MCP server is started with an allowlist of imported destination IDs.
+Package access for object changes is empty by default, while namespaces are
+allowed for reads. SAP tools that change objects may therefore require explicit
+package allowlist support before they can be used.
+
+If ADT-LS separately requests logon input, OpenADT uses the same variables for
+fields named `user`, `username`, `login`, or `password`. It sends sensitive
+fields to ADT-LS through its supplied loopback socket and returns only
+non-sensitive fields over LSP. MCP stdio cannot accept interactive prompts;
+an unresolved field cancels that logon attempt.
+
 If a previous run crashed, stale lock or endpoint files can block startup:
 
 ```bash
@@ -751,11 +771,11 @@ can be long (e.g. `abap_business_services-fetch_service_information` is
 len(serverKey) + len(toolName) ≤ 57   // 5 (mcp__) + 2 (__) = 7 overhead
 ```
 
-| Server key        | Max safe SAP tool name | Notes                                  |
-| ----------------- | ---------------------- | -------------------------------------- |
-| `sap-adt`         | 50                     | Recommended — fits the longest SAP tool|
-| `sap-adt-dev`     | 46                     | `abap_business_services-…` rejected    |
-| `my-sap-adt-mcp`  | 43                     | Most business-service tools rejected   |
+| Server key       | Max safe SAP tool name | Notes                                   |
+| ---------------- | ---------------------- | --------------------------------------- |
+| `sap-adt`        | 50                     | Recommended — fits the longest SAP tool |
+| `sap-adt-dev`    | 46                     | `abap_business_services-…` rejected     |
+| `my-sap-adt-mcp` | 43                     | Most business-service tools rejected    |
 
 **Mitigations (in order):**
 

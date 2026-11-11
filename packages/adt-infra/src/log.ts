@@ -43,6 +43,7 @@ export function redactSecrets(text: string): string {
     .replace(/"token"\s*:\s*"[^"]*"/gi, '"token":"[REDACTED]"')
     .replace(/"password"\s*:\s*"[^"]*"/gi, '"password":"[REDACTED]"')
     .replace(/"clientSecret"\s*:\s*"[^"]*"/gi, '"clientSecret":"[REDACTED]"')
+    .replace(/([?&]reentrance-ticket=)[^&#\s"]*/gi, '$1[REDACTED]')
 }
 
 class FileMcpLog implements McpLog {

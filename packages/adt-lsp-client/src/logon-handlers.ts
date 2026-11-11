@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process'
-import * as readline from 'node:readline/promises'
-import { stdin, stdout } from 'node:process'
+import { Buffer } from 'node:buffer'
+import { createConnection } from 'node:net'
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import type { MessageConnection } from '@openadt/adt-infra'
 import type { McpLog } from '@openadt/adt-infra'
 import {
@@ -13,17 +16,18 @@ import {
 export type RequestBrowserBasedLogonParams = {
   id: string
   title?: string
-  params?: Array<{ field?: { value?: string } }>
+  params?: Array<{ value?: string }>
 }
 
 export type RequestLogonInputParams = {
   id: string
   title?: string
+  sensitiveFieldsSocketPort?: number
   params?: Array<{
+    name?: string
     description?: string
     label?: string
     sensitive?: boolean
-    field?: { key?: string }
   }>
 }
 
@@ -37,27 +41,158 @@ export type LogonStateChangedParams = {
 
 let lastLogonFailureMessage: string | undefined
 
-function extractBrowserUrl(params: RequestBrowserBasedLogonParams): string | undefined {
-  return params.params?.[0]?.field?.value
+function loadLogonCredentials(): { username?: string; password?: string } {
+  const username = process.env.OPENADT_SAP_LOGON_USERNAME?.trim()
+  const password = process.env.OPENADT_SAP_LOGON_PASSWORD
+  if (username && password) return { username, password }
+  const file = process.env.OPENADT_SAP_CREDENTIALS_FILE
+  if (!file) return { username, password }
+  try {
+    const data = JSON.parse(readFileSync(file, 'utf8')) as { user?: unknown; password?: unknown }
+    if (
+      typeof data.user !== 'string' ||
+      !data.user.trim() ||
+      typeof data.password !== 'string' ||
+      !data.password
+    ) {
+      throw new Error('Invalid credentials')
+    }
+    return { username: data.user.trim(), password: data.password }
+  } catch {
+    throw new Error('Cannot load configured SAP credential file (expected user and password)')
+  }
+}
+
+export function extractBrowserUrl(params: RequestBrowserBasedLogonParams): string | undefined {
+  return params.params?.[0]?.value
+}
+
+export function withDestinationClient(url: string, destinationId: string, store: string): string {
+  try {
+    const parsed = new URL(url)
+    if (parsed.searchParams.has('sap-client')) return url
+    const data = JSON.parse(store) as {
+      destinations?: Array<{ id?: string; properties?: { client?: string } }>
+    }
+    const client = data.destinations?.find((destination) => destination.id === destinationId)
+      ?.properties?.client
+    if (!client || !/^\d{3}$/.test(client)) return url
+    parsed.searchParams.set('sap-client', client)
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
+function addDestinationClient(url: string, destinationId: string, storePath?: string): string {
+  try {
+    const dir = storePath || process.env.ADTLS_HOME || join(homedir(), '.adtls')
+    return withDestinationClient(
+      url,
+      destinationId,
+      readFileSync(join(dir, 'destinations.json'), 'utf8')
+    )
+  } catch {
+    return url
+  }
 }
 
 async function handleBrowserLogonRequest(
   connection: MessageConnection,
   params: RequestBrowserBasedLogonParams,
-  log: McpLog | undefined
+  log: McpLog | undefined,
+  destinationsStorePath?: string
 ): Promise<boolean> {
   const url = extractBrowserUrl(params)
-  log?.info(`SAP logon: opening browser (${params.title ?? params.id})`)
-  console.error('[openadt-mcp] SAP logon: opening browser — complete sign-in if prompted.')
   if (!isHttpUrl(url)) {
     log?.warn(
       url ? `requestBrowserBasedLogon: invalid URL ${url}` : 'requestBrowserBasedLogon: missing URL'
     )
     return false
   }
-  log?.info(`browser URL: ${url}`)
+  const { username, password } = loadLogonCredentials()
+  if (username && password) {
+    log?.info('SAP logon: completing reentrance-ticket flow headlessly')
+    return completeHeadlessBrowserLogon(
+      addDestinationClient(url, params.id, destinationsStorePath),
+      { username, password },
+      log
+    )
+  }
+  log?.info(`SAP logon: opening browser (${params.title ?? params.id})`)
+  console.error('[openadt-mcp] SAP logon: opening browser — complete sign-in if prompted.')
   openDefaultBrowser(url)
   return true
+}
+
+export async function completeHeadlessBrowserLogon(
+  logonUrl: string,
+  credentials: { username: string; password: string },
+  log?: McpLog,
+  fetchImpl: typeof fetch = fetch
+): Promise<boolean> {
+  let parsedLogonUrl: URL
+  try {
+    parsedLogonUrl = new URL(logonUrl)
+  } catch {
+    log?.warn('Headless SAP logon failed: invalid logon URL')
+    return false
+  }
+  if (
+    parsedLogonUrl.protocol !== 'https:' ||
+    parsedLogonUrl.pathname !== '/sap/bc/adt/core/http/reentranceticket'
+  ) {
+    log?.warn('Headless SAP logon failed: unexpected reentrance-ticket URL')
+    return false
+  }
+
+  try {
+    const authorization =
+      'Basic ' + Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')
+    const response = await fetchImpl(logonUrl, {
+      headers: { authorization },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(15_000),
+    })
+    await response.body?.cancel()
+
+    const location = response.headers.get('location')
+    if (response.status < 300 || response.status >= 400 || !location) {
+      log?.warn(`Headless SAP logon failed: ticket endpoint returned HTTP ${response.status}`)
+      return false
+    }
+
+    const callbackUrl = new URL(location, logonUrl)
+    const isLocalHost = ['localhost', '127.0.0.1', '[::1]'].includes(callbackUrl.hostname)
+    if (
+      callbackUrl.protocol !== 'http:' ||
+      !isLocalHost ||
+      callbackUrl.pathname !== '/adt/redirect'
+    ) {
+      log?.warn('Headless SAP logon failed: redirect is not the local ADT-LS callback')
+      return false
+    }
+    if (callbackUrl.hostname === 'localhost') {
+      callbackUrl.hostname = '127.0.0.1'
+    }
+
+    // The ADT-LS callback waits for this request handler to return true.
+    // Start ticket delivery without awaiting the callback response.
+    void fetchImpl(callbackUrl, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(30_000),
+    })
+      .then((callbackResponse) => callbackResponse.body?.cancel())
+      .catch((err: unknown) => {
+        log?.warn(
+          `Headless SAP logon callback failed: ${err instanceof Error ? err.name : 'unknown error'}`
+        )
+      })
+    return true
+  } catch (err) {
+    log?.warn(`Headless SAP logon failed: ${err instanceof Error ? err.name : 'unknown error'}`)
+    return false
+  }
 }
 
 function isHttpUrl(url: string | undefined): url is string {
@@ -74,29 +209,73 @@ async function handleLogonInputRequest(
   connection: MessageConnection,
   params: RequestLogonInputParams,
   log: McpLog | undefined
-): Promise<{ id: string; fields: Array<{ key: string; value: string }> } | undefined> {
-  const field = params.params?.[0]
-  if (!field?.field?.key) {
-    log?.warn('requestLogonInput: missing field')
-    return undefined
+): Promise<{ nonSensitiveFields: Record<string, string> } | undefined> {
+  const nonSensitiveFields: Record<string, string> = {}
+  const sensitiveFields: Record<string, string> = {}
+  const { username, password } = loadLogonCredentials()
+
+  for (const field of params.params ?? []) {
+    if (!field.name) {
+      log?.warn('requestLogonInput: field has no name')
+      await cancelLogonInput(connection, params.id)
+      return undefined
+    }
+    const normalizedName = field.name.toLowerCase()
+    const value = ['user', 'username', 'login'].includes(normalizedName)
+      ? username
+      : normalizedName === 'password'
+        ? password
+        : undefined
+    if (!value) {
+      log?.warn(`requestLogonInput: no configured value for field ${field.name}`)
+      await cancelLogonInput(connection, params.id)
+      return undefined
+    }
+    if (field.sensitive) sensitiveFields[field.name] = value
+    else nonSensitiveFields[field.name] = value
   }
-  log?.info(`SAP logon: terminal input (${params.title ?? params.id})`)
-  const value = await promptLogonInputTerminal(
-    params.title ?? 'SAP logon',
-    field.description ?? field.label ?? 'Enter value',
-    Boolean(field.sensitive)
-  )
-  if (!value) {
-    await connection.sendRequest(LSP_METHOD_DESTINATIONS_STOP_LOGON, {
-      destinationId: params.id,
-      cancel: true,
-    })
-    return undefined
+
+  if (Object.keys(sensitiveFields).length > 0) {
+    const port = params.sensitiveFieldsSocketPort
+    if (!Number.isInteger(port) || port! < 1 || port! > 65_535) {
+      log?.warn('requestLogonInput: missing or invalid sensitive-fields socket port')
+      await cancelLogonInput(connection, params.id)
+      return undefined
+    }
+    try {
+      await sendSensitiveFields(port!, sensitiveFields)
+    } catch (err) {
+      log?.warn(
+        `requestLogonInput: sensitive-fields socket failed (${err instanceof Error ? err.name : 'unknown error'})`
+      )
+      await cancelLogonInput(connection, params.id)
+      return undefined
+    }
   }
-  return {
-    id: params.id,
-    fields: [{ key: field.field.key, value }],
-  }
+
+  log?.info(`SAP logon: supplied configured input fields (${params.title ?? params.id})`)
+  return { nonSensitiveFields }
+}
+
+async function cancelLogonInput(
+  connection: MessageConnection,
+  destinationId: string
+): Promise<void> {
+  await connection.sendRequest(LSP_METHOD_DESTINATIONS_STOP_LOGON, {
+    destinationId,
+    cancel: true,
+  })
+}
+
+function sendSensitiveFields(port: number, fields: Record<string, string>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = createConnection({ host: '127.0.0.1', port })
+    socket.setTimeout(5_000)
+    socket.once('connect', () => socket.end(JSON.stringify(fields)))
+    socket.once('finish', resolve)
+    socket.once('timeout', () => socket.destroy(new Error('socket timeout')))
+    socket.once('error', reject)
+  })
 }
 
 function handleShowMessage(
@@ -131,9 +310,13 @@ function handleLogonStateChanged(params: LogonStateChangedParams, log: McpLog | 
 }
 
 /** Register SAP server→client logon handlers (same contract as VS Code extension). */
-export function registerLogonHandlers(connection: MessageConnection, log?: McpLog): void {
+export function registerLogonHandlers(
+  connection: MessageConnection,
+  log?: McpLog,
+  destinationsStorePath?: string
+): void {
   connection.onRequest(LSP_METHOD_DESTINATIONS_REQUEST_BROWSER_LOGON, (params) =>
-    handleBrowserLogonRequest(connection, params, log)
+    handleBrowserLogonRequest(connection, params, log, destinationsStorePath)
   )
   connection.onRequest(LSP_METHOD_DESTINATIONS_REQUEST_LOGON_INPUT, (params) =>
     handleLogonInputRequest(connection, params, log)
@@ -159,36 +342,6 @@ export function openDefaultBrowser(url: string): void {
     return
   }
   spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref()
-}
-
-async function promptLogonInputTerminal(
-  title: string,
-  prompt: string,
-  sensitive: boolean
-): Promise<string | undefined> {
-  console.error(`\n[openadt-mcp] ${title}`)
-  console.error(prompt)
-  if (sensitive) {
-    console.error(
-      '(input visible in terminal — use Secure Login / browser SSO when offered instead)'
-    )
-  }
-  if (!stdin.isTTY) {
-    console.error('[openadt-mcp] Cannot prompt: stdin is not a TTY.')
-    return undefined
-  }
-  const rl = readline.createInterface({
-    input: stdin,
-    output: sensitive ? undefined : stdout,
-    terminal: sensitive,
-  })
-  try {
-    const answer = await rl.question(sensitive ? 'Value: ' : '> ')
-    const trimmed = answer.trim()
-    return trimmed || undefined
-  } finally {
-    rl.close()
-  }
 }
 
 export async function getLogonState(

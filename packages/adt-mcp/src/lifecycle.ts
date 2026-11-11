@@ -9,11 +9,12 @@
  */
 import { createMcpLog, killProcessTree, locateAdtLs } from '@openadt/adt-infra'
 import { connectAdtLanguageServer, type LspSession } from '@openadt/adt-lsp-client'
-import type { McpServeConfig } from '@openadt/adt-config'
+import type { McpServeConfig, McpStartParams } from '@openadt/adt-config'
 import { deriveDestinations } from './destinations.js'
 import { writeEndpoint, removeEndpoint, type McpEndpointMode } from './endpoint-store.js'
 import {
   generateMcpToken,
+  buildDestinationAllowlist,
   setMcpDestination,
   startMcpServer,
   stopMcpServer,
@@ -48,6 +49,7 @@ export async function startOwnBackend(
   }
 
   const { storePath, ids } = deriveDestinations()
+  const allowlist = buildDestinationAllowlist(ids)
   const log = createMcpLog({ verbose: cfg.verbose, logFile: cfg.logFile })
   const backendPort = options.port ?? cfg.port
 
@@ -70,6 +72,7 @@ export async function startOwnBackend(
   const started = await startMcpServerOnFreePort(session.connection, {
     startPort: backendPort,
     token,
+    allowlist,
   })
 
   const ready = await waitForMcpHttp(started.port, started.token)
@@ -109,7 +112,13 @@ export async function startOwnBackend(
     removeEndpoint(started.port)
   }
 
-  return { session, port: started.port, token: started.token, destinations: ids, shutdown }
+  return {
+    session,
+    port: started.port,
+    token: started.token,
+    destinations: ids,
+    shutdown,
+  }
 }
 
 /** Max sequential ports tried when the requested port is already bound. */
@@ -124,12 +133,20 @@ const MAX_PORT = 65535
  */
 async function startMcpServerOnFreePort(
   connection: Parameters<typeof startMcpServer>[0],
-  options: { startPort: number; token: string }
+  options: {
+    startPort: number
+    token: string
+    allowlist: NonNullable<McpStartParams['allowlist']>
+  }
 ): Promise<{ port: number; token: string }> {
   for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
     const port = Math.min(options.startPort + attempt, MAX_PORT)
     try {
-      return await startMcpServer(connection, { port, token: options.token })
+      return await startMcpServer(connection, {
+        port,
+        token: options.token,
+        allowlist: options.allowlist,
+      })
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err))
       if (!isPortInUseMessage(error.message)) {

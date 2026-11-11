@@ -112,7 +112,7 @@ export async function connectAdtLanguageServer(
     writer,
     log ? createLspConnectionLogger(log) : undefined
   )
-  registerLogonHandlers(connection, log)
+  registerLogonHandlers(connection, log, options.destinationsStorePath)
   if (log) {
     connection.trace(
       Trace.Verbose,

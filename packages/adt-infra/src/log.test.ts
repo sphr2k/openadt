@@ -30,6 +30,13 @@ describe('redactSecrets', () => {
     expect(output).not.toContain('mysecret')
   })
 
+  test('redacts SAP reentrance tickets in callback URLs', () => {
+    const input = 'http://localhost:3011/adt/redirect?reentrance-ticket=one-time-ticket&state=ok'
+    const output = redactSecrets(input)
+    expect(output).toContain('reentrance-ticket=[REDACTED]')
+    expect(output).not.toContain('one-time-ticket')
+  })
+
   test('redacts multiple secrets in one text', () => {
     const input = 'Bearer abc {"password":"def","token":"ghi"}'
     const output = redactSecrets(input)

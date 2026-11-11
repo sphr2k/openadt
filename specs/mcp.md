@@ -4,8 +4,8 @@ OpenADT ships `@openadt/adt-mcp` — a **unified MCP mesh** that merges two tool
 
 | Group           | Source                                                                   |
 | --------------- | ------------------------------------------------------------------------ |
-| SAP `abap_*`    | Proxied from the **official SAP ADT MCP** (HTTP `/mcp`) inside `adt-lsc`  |
-| OpenADT `adt_*` | Run **in-process** over the same `adt-lsc` LSP connection (26 tools)      |
+| SAP `abap_*`    | Proxied from the **official SAP ADT MCP** (HTTP `/mcp`) inside `adt-lsc` |
+| OpenADT `adt_*` | Run **in-process** over the same `adt-lsc` LSP connection (26 tools)     |
 
 It also adds OpenADT-owned workflow **prompts** (authored in TypeScript) and shortens long SAP tool names for
 agent backends with name limits. One owned `adt-lsc` child backs both groups. The mesh serves **stdio**
@@ -13,10 +13,10 @@ agent backends with name limits. One owned `adt-lsc` child backs both groups. Th
 `print-config`). The official SAP layer is still SAP-owned — OpenADT orchestrates it and adds the `adt_*` group
 and prompts on top.
 
-| Transport       | Who connects                    | Detail                                                            |
-| --------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `serve` (stdio) | Agent/IDE with stdio MCP        | Content-Length / NDJSON on stdin/stdout; the merged mesh surface  |
-| `serve --http`  | Agent/IDE with HTTP MCP support | `http://localhost:<port>/mcp` + Bearer; the merged mesh surface   |
+| Transport       | Who connects                    | Detail                                                           |
+| --------------- | ------------------------------- | ---------------------------------------------------------------- |
+| `serve` (stdio) | Agent/IDE with stdio MCP        | Content-Length / NDJSON on stdin/stdout; the merged mesh surface |
+| `serve --http`  | Agent/IDE with HTTP MCP support | `http://localhost:<port>/mcp` + Bearer; the merged mesh surface  |
 
 ### SAP source modes
 
@@ -47,7 +47,7 @@ mesh's own mode.
 | Daemon spawn       | `serve --stdio` cold start **re-execs the binary itself** via `process.execPath`; there is no `bun main.ts` lookup on disk. See [mcp-shared-backend.md](mcp-shared-backend.md#launcher-resolution-resolvedetachedspawn). |
 | Install            | `scoop install openadt-mcp` (Windows) or `brew install openadt-mcp` (Linux, macOS). Independent of `scoop install openadt` / `brew install openadt`.                                                                     |
 | Endpoint store     | `~/.openadt/mcp/endpoints/<port>.json` (unchanged).                                                                                                                                                                      |
-| In-repo dev paths  | Unchanged: `bun run mcp:stdio`, `./dev-openadt mcp`, `openadt-mcp-dev` shim. Dev path still uses Bun + source from `packages/adt-mcp/`.                                                                        |
+| In-repo dev paths  | Unchanged: `bun run mcp:stdio`, `./dev-openadt mcp`, `openadt-mcp-dev` shim. Dev path still uses Bun + source from `packages/adt-mcp/`.                                                                                  |
 | Java wrapper       | `openadt mcp …` stays and **wraps** `openadt-mcp`. The wrapper resolves and spawns the binary; see [cli.md](cli.md#openadt-mcp).                                                                                         |
 | Release artifact   | `openadt-mcp-X.Y.Z-{platform}.{zip\|tar.gz}` per release — see [packaging.md](packaging.md).                                                                                                                             |
 
@@ -101,15 +101,29 @@ adt-lsc --pipe=<pipeName> -consoleLog -Djco.trace_path=<workspace> -data <worksp
 
 ### Step 2 — LSP handshake (required before MCP)
 
-| Step | LSP method                             | Notes                                                                                                      |
-| ---- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1    | `initialize`                           | Must include `initializationOptions.userAgentInfos` (ADT VS Code + client); omit → logon NPE in `adt-lsc`. |
-| 2    | `initialized`                          | Notification (empty params).                                                                               |
-| 3    | `adtLs/destinations/initializeService` | Named params: `destinationsStorePath`, `workspaceFolderUris`, `fileUris`.                                  |
-| 4    | `adtLs/destinations/createProject`     | Optional; destination id string param.                                                                     |
-| 5    | `adtLs/destinations/ensureLoggedOn`    | Optional; SSO / Secure Login / browser handlers on the LSP connection.                                     |
+| Step | LSP method                             | Notes                                                                                                                         |
+| ---- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `initialize`                           | Must include `initializationOptions.userAgentInfos` (ADT VS Code + client); omit → logon NPE in `adt-lsc`.                    |
+| 2    | `initialized`                          | Notification (empty params).                                                                                                  |
+| 3    | `adtLs/destinations/initializeService` | Named params: `destinationsStorePath`, `workspaceFolderUris`, `fileUris`.                                                     |
+| 4    | `adtLs/destinations/createProject`     | Optional; destination id string param.                                                                                        |
+| 5    | `adtLs/destinations/ensureLoggedOn`    | Optional; browser handlers on the LSP connection. Reentrance-ticket login can run headlessly when credentials are configured. |
 
 OpenADT reference: `packages/adt-mcp/src/lsp-client.ts`, `logon-handlers.ts`.
+
+#### Headless HTTP reentrance-ticket login
+
+SAP ADT LS sends `adtLs/destinations/requestBrowserBasedLogon` with the SAP `logonUrl` in `params[0].value` (the VS Code extension reads that exact field). When both `OPENADT_SAP_LOGON_USERNAME` and `OPENADT_SAP_LOGON_PASSWORD` are set, OpenADT completes this browser handoff without opening a browser. If the URL lacks `sap-client`, use the three-digit `properties.client` of the matching destination from the ADT-LS destination store; preserve any `sap-client` supplied in the URL:
+
+1. GET the HTTPS `logonUrl` with HTTP Basic authentication.
+2. Require a redirect to the ADT-LS local `/adt/redirect` callback.
+3. Start a GET to that callback (rewriting `localhost` to `127.0.0.1`) without waiting for its response, then answer `true` to the LSP request. Waiting for the callback before answering deadlocks ADT-LS.
+
+Credentials come from `OPENADT_SAP_LOGON_USERNAME` and `OPENADT_SAP_LOGON_PASSWORD`, or from the JSON file selected by `OPENADT_SAP_CREDENTIALS_FILE` (fields `user` and `password`). Explicit environment credentials take precedence. File errors fail the request without exposing credential values. Credentials are never logged. Without configured credentials, OpenADT opens the system browser. This flow uses SAP's reentrance-ticket authentication; it does not use OAuth Authorization Code.
+
+#### ADT-LS logon input requests
+
+For `adtLs/destinations/requestLogonInput`, OpenADT follows the SAP VS Code extension's field contract. Non-sensitive fields are returned in `nonSensitiveFields`; sensitive fields are sent as a JSON object to the loopback port supplied as `sensitiveFieldsSocketPort`. Sensitive values are never included in the LSP response. In headless MCP operation, fields named `user`, `username`, or `login` use `OPENADT_SAP_LOGON_USERNAME`, and a field named `password` uses `OPENADT_SAP_LOGON_PASSWORD`. Unresolved fields cannot be prompted through MCP stdio; the logon attempt is cancelled instead.
 
 ### Step 3 — LSP MCP control plane (`adtLs/mcp/*`)
 
@@ -119,10 +133,11 @@ JSON-RPC segment `@JsonSegment("adtLs/mcp")` on the **same pipe LSP connection**
 
 **Request params:**
 
-| Field   | Type   | Rules                                                                                   |
-| ------- | ------ | --------------------------------------------------------------------------------------- |
-| `port`  | int    | **1024–65535**; port must be free on localhost                                          |
-| `token` | string | Optional; if omitted or empty, SAP generates a URL-safe Base64 secret (16 random bytes) |
+| Field       | Type   | Rules                                                                                   |
+| ----------- | ------ | --------------------------------------------------------------------------------------- |
+| `port`      | int    | **1024–65535**; port must be free on localhost                                          |
+| `token`     | string | Optional; if omitted or empty, SAP generates a URL-safe Base64 secret (16 random bytes) |
+| `allowlist` | object | Exact imported destination IDs, empty package change list, and `*` namespaces.          |
 
 **Response:**
 
@@ -136,6 +151,7 @@ There is **no** `version` field in the LSP response (verified on `sapse.adt-vsco
 **Semantics:**
 
 - Starts embedded Jetty on **`localhost`** only, MCP endpoint **`/mcp`**.
+- Pass SAP's `allowlist` when starting the server: `destinations` is the comma-separated exact imported destination IDs, `packages` is empty (object changes remain restricted), and `namespaces` is `*`. Reject destination IDs containing glob or list separators rather than broadening access.
 - If HTTP MCP is already running in this `adt-lsc` instance: **no restart** — updates Bearer token and returns current port.
 - `startMCPServer` may return before HTTP accepts connections; clients must poll (OpenADT: `waitForMcpHttp`).
 
@@ -248,14 +264,14 @@ Token never leaves the parent; agent config is command-only (no URL/headers).
 
 ## Command reference
 
-| Command          | Role                                                            |
-| ---------------- | -------------------------------------------------------------- |
-| `serve`          | Mesh over **stdio** (own `adt-lsc`); default                   |
-| `serve --http`   | Mesh over **HTTP** `/mcp` + Bearer on localhost                |
-| `status`         | Probe active endpoint health                                   |
-| `list`           | List active endpoints in the store                             |
-| `stop`           | Stop tracked MCP backend(s)                                    |
-| `print-config`   | Emit `{ url, headers }` for HTTP-native clients                |
+| Command        | Role                                            |
+| -------------- | ----------------------------------------------- |
+| `serve`        | Mesh over **stdio** (own `adt-lsc`); default    |
+| `serve --http` | Mesh over **HTTP** `/mcp` + Bearer on localhost |
+| `status`       | Probe active endpoint health                    |
+| `list`         | List active endpoints in the store              |
+| `stop`         | Stop tracked MCP backend(s)                     |
+| `print-config` | Emit `{ url, headers }` for HTTP-native clients |
 
 ```bash
 bun run mcp:stdio                                  # stdio mesh (IDE/agent config)
@@ -271,20 +287,20 @@ the SAP ADT VS Code extension.
 
 ### `serve` flags
 
-| Flag                     | Default                       | Meaning                                                 |
-| ------------------------ | ----------------------------- | ------------------------------------------------------- |
-| `--http`                 | off (stdio)                   | Serve the mesh over Streamable HTTP `/mcp`              |
-| `--port`                 | `2236`                        | Mesh HTTP port (`--http`); else SAP backend port        |
-| `--workspace`            | `~/.openadt/adt-ls-workspace` | Eclipse `-data` for `adt-lsc`                           |
-| `--lsp` / `--no-lsp`     | `--lsp`                       | Include / exclude the OpenADT `adt_*` group (own mode)  |
-| `--proxy` / `--no-proxy` | `--proxy`                     | Include / exclude the SAP `abap_*` group                |
-| `--sap-port` N           | —                             | Attach to an external SAP MCP on this port              |
-| `--sap-token` T          | endpoint store                | Bearer token for `--sap-port`                           |
-| `--shared`               | off                           | Reuse a healthy shared daemon from the endpoint store   |
-| `--destination`          | (all derived)                 | Pre-logon + `setDestination` for one destination (overrides default all-destination logon in own mode)        |
-| `--logon-timeout`        | `300`                         | Seconds for `ensureLoggedOn`                            |
-| `--show-token`           | off                           | Print the Bearer token on `--http`                      |
-| `--verbose` / `--log-file` | off                         | Debug logging                                           |
+| Flag                       | Default                       | Meaning                                                                                                |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `--http`                   | off (stdio)                   | Serve the mesh over Streamable HTTP `/mcp`                                                             |
+| `--port`                   | `2236`                        | Mesh HTTP port (`--http`); else SAP backend port                                                       |
+| `--workspace`              | `~/.openadt/adt-ls-workspace` | Eclipse `-data` for `adt-lsc`                                                                          |
+| `--lsp` / `--no-lsp`       | `--lsp`                       | Include / exclude the OpenADT `adt_*` group (own mode)                                                 |
+| `--proxy` / `--no-proxy`   | `--proxy`                     | Include / exclude the SAP `abap_*` group                                                               |
+| `--sap-port` N             | —                             | Attach to an external SAP MCP on this port                                                             |
+| `--sap-token` T            | endpoint store                | Bearer token for `--sap-port`                                                                          |
+| `--shared`                 | off                           | Reuse a healthy shared daemon from the endpoint store                                                  |
+| `--destination`            | (all derived)                 | Pre-logon + `setDestination` for one destination (overrides default all-destination logon in own mode) |
+| `--logon-timeout`          | `300`                         | Seconds for `ensureLoggedOn`                                                                           |
+| `--show-token`             | off                           | Print the Bearer token on `--http`                                                                     |
+| `--verbose` / `--log-file` | off                           | Debug logging                                                                                          |
 
 Destinations are **auto-derived** from `~/.adtls/destinations.json` (`ADTLS_HOME` to override the directory);
 there is no `--import` flag — point `--workspace` at the data directory and destinations are pulled in.
@@ -461,17 +477,17 @@ Each `serve` / `serve --stdio` writes `~/.openadt/mcp/endpoints/<port>.json` (`u
 
 ## Implementation map
 
-| Component              | Path                                                                         |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| CLI entry              | `apps/openadt-cli` → `McpServeCommand` → Bun launcher                        |
-| Launcher               | `packages/adt-mcp/src/main.ts`                                              |
-| Stdio bridge           | `packages/adt-mcp/src/stdio-proxy.ts`                                       |
-| Tool name limits       | `packages/adt-mcp/src/tool-name-limit.ts`                                   |
-| Content-Length framing | `packages/adt-mcp/src/mcp-framing.ts` (`node:stream` Transform)            |
-| Stdio agent entry      | `scripts/mcp-stdio.ts` → `packages/adt-mcp/src/mcp-stdio-entry.ts`          |
-| LSP + logon            | `lsp-client.ts`, `logon-handlers.ts`                                         |
-| HTTP MCP API           | `mcp.ts` (`startMcpServer`, `stopMcpServer`, `probeMcpHttp`)                 |
-| Extension locate       | `locate.ts`                                                                  |
+| Component              | Path                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| CLI entry              | `apps/openadt-cli` → `McpServeCommand` → Bun launcher              |
+| Launcher               | `packages/adt-mcp/src/main.ts`                                     |
+| Stdio bridge           | `packages/adt-mcp/src/stdio-proxy.ts`                              |
+| Tool name limits       | `packages/adt-mcp/src/tool-name-limit.ts`                          |
+| Content-Length framing | `packages/adt-mcp/src/mcp-framing.ts` (`node:stream` Transform)    |
+| Stdio agent entry      | `scripts/mcp-stdio.ts` → `packages/adt-mcp/src/mcp-stdio-entry.ts` |
+| LSP + logon            | `lsp-client.ts`, `logon-handlers.ts`                               |
+| HTTP MCP API           | `mcp.ts` (`startMcpServer`, `stopMcpServer`, `probeMcpHttp`)       |
+| Extension locate       | `locate.ts`                                                        |
 
 ---
 
@@ -542,17 +558,17 @@ See [adt-agent-typescript.md](adt-agent-typescript.md) for the full tool referen
 
 Package: `tools/adt-lsp-mcp/` — stdio-only MCP for the 26 `adt_*` tools. Depends on `@openadt/adt-lsp-mcp-tools` (handlers) and `@openadt/adt-lsp-client` (LSP transport). Calls `adt-lsc` over **pipe LSP** directly; there is **no** HTTP MCP bridge (`adtLs/mcp/startMCPServer` is not used).
 
-| Item                    | Contract                                                                                                                                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Item                    | Contract                                                                                                                                                                                                                                |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CLI                     | Optional bound destination at startup: `adt-lsp-mcp [destination]` or env `OPENADT_DESTINATION` / `OPENADT_MCP_DESTINATION`. Without it: per-tool `destination` (SAP MCP mode). Dev entry: [adt-lsp-mcp-local.md](adt-lsp-mcp-local.md) |
-| Destination id          | `SID_CLIENT_USER_LANG` (e.g. `ABC_200_USER_EN`) — must exist in `~/.adtls/destinations.json`. Per-tool arg when unbound; hidden/injected when bound at startup.                                                                               |
-| `destinationsStorePath` | **Directory** `~/.adtls` (contains `destinations.json`), not the file path                                                                                                                                 |
-| LSP transport           | Handlers receive `LspConnectionTransport`, not raw `MessageConnection`                                                                                                                                     |
-| MCP `tools/call` result | Handler return value is the JSON-RPC **`result`** field (`{ content, isError? }`), not nested under `result.result`                                                                                        |
-| `tools/list` schema     | JSON Schema via `@openadt/mcp-tools`. **`destination` included** when unbound (SAP MCP parity); **omitted** when bound at startup.                                                                         |
-| Startup                 | `initialize` / `tools/list` / `prompts/list` are immediate. Bound destination: LSP logon in background. Unbound: lazy LSP + logon on first `tools/call` per destination. Multi-destination supported on one session when unbound.                          |
-| Transport LSP namespace | `adtLs/cts/transport/*` (not `adtLs/transport/*`)                                                                                                                                                          |
-| Object URI chain        | ADT path from `adt_quick_search` → `adtLs/repository/getLsUri` → repotree/AFF URI for file/transport ops; `checkTransportForObjectLock` uses `{ objectInfo: { objectUri }, operationType }` after getLsUri |
+| Destination id          | `SID_CLIENT_USER_LANG` (e.g. `ABC_200_USER_EN`) — must exist in `~/.adtls/destinations.json`. Per-tool arg when unbound; hidden/injected when bound at startup.                                                                         |
+| `destinationsStorePath` | **Directory** `~/.adtls` (contains `destinations.json`), not the file path                                                                                                                                                              |
+| LSP transport           | Handlers receive `LspConnectionTransport`, not raw `MessageConnection`                                                                                                                                                                  |
+| MCP `tools/call` result | Handler return value is the JSON-RPC **`result`** field (`{ content, isError? }`), not nested under `result.result`                                                                                                                     |
+| `tools/list` schema     | JSON Schema via `@openadt/mcp-tools`. **`destination` included** when unbound (SAP MCP parity); **omitted** when bound at startup.                                                                                                      |
+| Startup                 | `initialize` / `tools/list` / `prompts/list` are immediate. Bound destination: LSP logon in background. Unbound: lazy LSP + logon on first `tools/call` per destination. Multi-destination supported on one session when unbound.       |
+| Transport LSP namespace | `adtLs/cts/transport/*` (not `adtLs/transport/*`)                                                                                                                                                                                       |
+| Object URI chain        | ADT path from `adt_quick_search` → `adtLs/repository/getLsUri` → repotree/AFF URI for file/transport ops; `checkTransportForObjectLock` uses `{ objectInfo: { objectUri }, operationType }` after getLsUri                              |
 
 **Guidance prompt (OpenADT-owned):**
 
