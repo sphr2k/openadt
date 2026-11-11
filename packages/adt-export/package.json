@@ -1,0 +1,25 @@
+{
+  "name": "@openadt/adt-export",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "adt-export": "./dist/main.mjs"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:check": "tsc --noEmit",
+    "lint": "oxlint"
+  },
+  "dependencies": {
+    "@openadt/adt-infra": "workspace:*",
+    "@openadt/adt-config": "workspace:*",
+    "@openadt/adt-lsp-client": "workspace:*",
+    "js-yaml": "^4.3.1"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./main": "./dist/main.mjs",
+    "./package.json": "./package.json"
+  }
+}

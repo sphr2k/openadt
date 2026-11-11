@@ -161,6 +161,23 @@ writeFileSync(join(stageDir, 'VERSION'), `${version}\n`)
 cpSync(join(root, 'LICENSE'), join(stageDir, 'LICENSE'))
 
 writeLaunchers({ base: stageDir })
+
+// Bundle the independent exporter as one Bun JS file (no MCP runtime needed).
+const exportBundle = spawnSync(
+  'bun',
+  [
+    'build',
+    join(root, 'packages/adt-export/src/main.ts'),
+    '--target=bun',
+    '--outfile',
+    join(stageDir, 'bin/adt-export.mjs'),
+  ],
+  { stdio: 'inherit', cwd: root }
+)
+if (exportBundle.status !== 0) {
+  throw new Error('Building standalone adt-export bundle failed')
+}
+
 if (process.platform === 'win32' || process.env.OPENADT_PACKAGE_WIN_EXE === '1') {
   buildWindowsExe({ target: join(stageDir, 'openadt.exe') })
   for (const extra of ['openadt.pdb', 'openadt.deps.json', 'openadt.runtimeconfig.json']) {

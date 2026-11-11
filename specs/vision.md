@@ -24,6 +24,15 @@ OpenADT is a **thin Java wrapper around the official SAP ADT SDK** (`com.sap.adt
 - **Runtime** reads `~/.openadt/config.toml` (no full-machine rescan per command).
 - **`openadt setup`** / **`openadt config bootstrap`** — one-shot (or on demand) detection and SDK runtime jar build.
 
+## Headless package export
+
+`packages/adt-export` is an independent TypeScript module and CLI. It uses the
+SAP-provided `adt-lsc` language server via the shared `adt-lsp-client`,
+but has no dependency on the MCP package or a running VS Code process.
+The Java CLI delegates `openadt export` to this module. See
+[export.md](export.md) for the spec; it can later be distributed as a
+standalone lightweight binary.
+
 ## Roadmap: MCP
 
 MCP is a **separate installable** product, `openadt-mcp`: a standalone compiled Bun binary with its own Scoop bucket (`scoop install openadt-mcp`) and Homebrew tap (`brew install openadt-mcp`). It is the same launcher described in [mcp.md](mcp.md) — child `adt-lsc`, HTTP MCP, optional stdio bridge (`serve --stdio`). The Java `openadt mcp` subcommand stays and wraps `openadt-mcp`; OpenADT does not define MCP tools.

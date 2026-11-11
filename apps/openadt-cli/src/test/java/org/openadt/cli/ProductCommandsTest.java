@@ -21,6 +21,7 @@ class ProductCommandsTest {
         assertTrue(help.contains("discovery"));
         assertTrue(help.contains("transports"));
         assertTrue(help.contains("mcp"));
+        assertTrue(help.contains("export"));
         // `adt` is the agent-foundation surface (specs/adt-agent.md); required since T1.
         assertTrue(help.contains("adt"));
         assertFalse(help.contains("sdk"));

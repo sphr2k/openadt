@@ -50,6 +50,7 @@ Module and package map: [apps/ARCHITECTURE.md](apps/ARCHITECTURE.md).
 | Spec                                                 | Use when changing                                |
 | ---------------------------------------------------- | ------------------------------------------------ |
 | [vision.md](specs/vision.md)                         | Product scope, positioning                       |
+| [export.md](specs/export.md)                       | Headless package export and YAML config           |
 | [cli.md](specs/cli.md)                               | Commands, flags, exit codes                      |
 | [config.md](specs/config.md)                         | TOML schema, profiles, merge                     |
 | [proxy.md](specs/proxy.md)                           | Local HTTP proxy, header redaction               |

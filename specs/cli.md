@@ -13,6 +13,23 @@ Options:
 
 ---
 
+
+### openadt export
+
+Export selected SAP packages through the headless ADT Language Server:
+
+```bash
+openadt export --config export.yaml
+openadt export --config export.yaml --dry-run
+openadt export --config export.yaml --refresh
+```
+
+Requires Bun (or a compiled `adt-export` binary) plus the SAP-provided
+`adt-lsc` and ADT LS destination setup. VS Code need not be running.
+See [export.md](export.md) for the YAML schema, sweep and resume semantics.
+
+---
+
 ### openadt config
 
 Show the effective merged configuration (paths, systems, runtime — no secrets).
@@ -250,7 +267,7 @@ openadt discovery DEV --profile snc --out tmp/discovery.xml
 Options:
 
 - `--profile <name>` — Authentication profile (default: `default_profile`)
-- `--out, -o <path>` — Write discovery body: with `--json` or a `.json` path, converts Atom/XML to JSON with the same tree shape (elements, `@attribute`, arrays for repeats); otherwise writes raw Atom/XML
+- `--out, -o <path>` — Write discovery body: with `--json` or a `.json` path, converts Atom/XML to JSON with the same tree shape (elements, ```attribute`, arrays for repeats); otherwise writes raw Atom/XML
 - `--full` — Also print the full body to stdout (JSON when `--json`, else raw XML)
 - `--format json` or `--json` — Full discovery document body as JSON on stdout when `--out` is omitted; with `--out`, JSON is written only to the file
 - `--config, -c <path>` — Config file path
@@ -394,7 +411,7 @@ Options:
 - `--method, -X <method>` — HTTP method (default: `GET`)
 - `--header, -H "Name: Value"` — Add request header (repeatable)
 - `--accept, -A <type>` — Set `Accept` header (repeatable; discovery defaults to `application/atomsvc+xml`)
-- `--body, -d <text|@file>` — Request body text or `@file` to read from file
+- `--body, -d <text|@file>` — Request body text or ```file` to read from file
 - `--output, -o <file>` — Write response body to file
 - `--include, -i` — Include response status line and headers in output
 - `--fail, -f` — Exit nonzero for HTTP status >= 400

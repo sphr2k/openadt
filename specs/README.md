@@ -7,6 +7,7 @@ Behavior contracts for OpenADT. **SDD enforcement:** [DESIGN.md](../DESIGN.md). 
 | Spec                                           | Scope                                                           |
 | ---------------------------------------------- | --------------------------------------------------------------- |
 | [vision.md](vision.md)                         | Product north star, package map                                 |
+| [export.md](export.md)                             | Headless package export, YAML, sweep and resume                |
 | [cli.md](cli.md)                               | Commands: `fetch`, `proxy`, `adt`, `config`, `setup`            |
 | [sdk-capabilities.md](sdk-capabilities.md)     | SAP ADT SDK APIs used by OpenADT                                |
 | [sdk-services.md](sdk-services.md)             | Registered SDK service registry and handlers                    |

@@ -49,3 +49,13 @@ Each leaf package under `apps/*/src/main/java/org/openadt/` includes `package-in
 ## Vision
 
 [specs/vision.md](../specs/vision.md)
+
+
+## Headless tree export (TypeScript)
+
+`packages/adt-export` is an independent package containing the configuration
+parser, package discovery, inventory sweep, file writer, checkpoint journal,
+CLI, and tests. It depends only on shared `adt-lsp-client`, `adt-infra`,
+`adt-config` and YAML parsing; it does not import `adt-mcp`. The Java
+`ExportCommand` invokes its standalone process rather than importing domain
+logic into the Java CLI. See [export spec](../specs/export.md).

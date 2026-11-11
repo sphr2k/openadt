@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2024"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@openadt/adt-infra": ["../../packages/adt-infra/src/index.ts"],
+      "@openadt/adt-config": ["../../packages/adt-config/src/index.ts"],
+      "@openadt/adt-lsp-contracts": ["../../packages/adt-lsp-contracts/src/index.ts"],
+      "@openadt/adt-lsp-client": ["../../packages/adt-lsp-client/src/index.ts"],
+      "@openadt/adt-lsp-mcp-tools": ["../../packages/adt-lsp-mcp-tools/src/index.ts"],
+      "@openadt/mcp-framing": ["../../packages/mcp-framing/src/index.ts"],
+      "@openadt/mcp-tools": ["../../packages/mcp-tools/src/index.ts"]
+    },
+    "ignoreDeprecations": "6.0",
+    "types": ["bun-types"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": []
+}
