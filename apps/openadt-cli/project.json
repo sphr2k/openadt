@@ -9,13 +9,8 @@
   "targets": {
     "compile": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "openadt-config:compile",
-        "openadt-sap-adt:compile",
-        "openadt-bootstrap:compile"
-      ],
       "options": {
-        "command": "node scripts/mvnw-runner.ts -q compile -pl apps/openadt-cli -am -Pdistribution -Dopenadt.distribution=true -f pom.xml && bun run scripts/dev-runtime-classpath.ts",
+        "command": "node scripts/mvnw-runner.ts -q compile -Pdistribution -Dopenadt.distribution=true -f pom.xml && bun run scripts/dev-runtime-classpath.ts",
         "cwd": "{workspaceRoot}"
       },
       "cache": true,

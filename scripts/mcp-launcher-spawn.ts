@@ -6,17 +6,18 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { resolveBunExecutable } from '../tools/sap-adt-mcp-launcher/src/infra/resolve-bun.ts'
+import { homedir } from 'node:os'
+
+function resolveBunExecutable(): string {
+  const configured = process.env.OPENADT_BUN?.trim()
+  if (configured) return configured
+  const executable = process.platform === 'win32' ? 'bun.exe' : 'bun'
+  const installed = join(homedir(), '.bun', 'bin', executable)
+  return existsSync(installed) ? installed : executable
+}
 
 export function mcpLauncherPath(repoRoot: string): string {
-  // Packaged builds (tsdown) emit `tools/sap-adt-mcp-launcher/dist/main.{mjs,js}`.
-  // Dev clones (`bun run ...`) run `src/main.ts` directly. Prefer dist when present.
-  const distDir = join(repoRoot, 'tools', 'sap-adt-mcp-launcher', 'dist')
-  for (const name of ['main.mjs', 'main.js']) {
-    const candidate = join(distDir, name)
-    if (existsSync(candidate)) return candidate
-  }
-  return join(repoRoot, 'tools', 'sap-adt-mcp-launcher', 'src', 'main.ts')
+  return join(repoRoot, 'packages', 'adt-mcp', 'src', 'cli.ts')
 }
 
 /** Subcommands that speak MCP over stdin/stdout (not just stderr logs). */

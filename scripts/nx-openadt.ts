@@ -115,6 +115,9 @@ function firstSubcommand(args: string[]): string | undefined {
 /** HTTP browser SSO / plain HTTP transport — fat jar is enough. */
 function useFatJar(profile: string | undefined, args: string[]): boolean {
   const subcommand = firstSubcommand(args)
+  if (!subcommand || args.includes('--help') || args.includes('-h') || subcommand === 'export') {
+    return true
+  }
   if (subcommand === 'auth' || subcommand === 'discovery' || subcommand === 'transports') {
     return false
   }
