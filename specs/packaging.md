@@ -153,3 +153,13 @@ Local dry-run (no git writes):
 ```bash
 bun run release:version -- --bump=patch
 ```
+
+
+## Exporter package boundary
+
+The Java `openadt export` command delegates to a separate process. Distribution
+bundles `bin/adt-export.mjs` using `bun build --target=bun`; runtime requires
+Bun (or a separately compiled `adt-export` binary on PATH). The exporter is
+implemented in `packages/adt-export` and does not depend on `adt-mcp`.
+Eventually it can be published separately without changing the export domain
+code or requiring the full OpenADT SDK/Java launcher.

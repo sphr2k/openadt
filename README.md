@@ -28,6 +28,7 @@
 
 OpenADT lets you call SAP ADT from your terminal, scripts, CI, or AI agents — using the same JCo + SNC logon stack Eclipse ADT uses. One tool, three entry points:
 
+- **`openadt export`** — bulk package tree export with YAML globs and resume (headless ADT language server)
 - **`openadt fetch`** — one ADT request
 - **`openadt proxy`** — a local HTTP endpoint any IDE / `curl` can use
 - **`openadt mcp serve`** — gives any AI agent the official SAP ADT MCP tools

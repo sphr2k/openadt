@@ -15,6 +15,7 @@ import picocli.CommandLine.Command;
         SetupCommand.class,
         ProxyCommand.class,
         FetchCommand.class,
+        ExportCommand.class,
         AuthCommand.class,
         DiscoveryCommand.class,
         TransportsCommand.class,

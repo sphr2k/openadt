@@ -15,6 +15,7 @@ Overview: [README.md](../README.md). Specs: [specs/README.md](../specs/README.md
 | SAP software on your machine | [SAP prerequisites](#sap-prerequisites)            |
 | First config                 | [First setup](#first-setup)                        |
 | Config files                 | [Config](#config)                                  |
+| `export`                     | [Package export](#package-export)                  |
 | `fetch`                      | [Fetch](#fetch)                                    |
 | `proxy` / IDE clients        | [Local proxy](#local-proxy)                        |
 | ABAP FS                      | [integrations/abap-fs.md](integrations/abap-fs.md) |
@@ -101,6 +102,41 @@ Install from SAP or your organization for the auth path you use:
 - **Proxy `--local-auth basic`** — protects localhost only; not SAP logon.
 
 Prefer the full SDK stack when you need Eclipse ADT parity.
+
+<a id="package-export"></a>
+
+## Package export (YAML)
+
+Export selected package trees through the SAP ADT language server; VS Code
+does not need to be running. The exporter lives in the independent
+`packages/adt-export` module and requires Bun (or a compiled binary),
+the SAP `adt-lsc` runtime and a destination configured in
+`~/.adtls/destinations.json`. It does **not** need the MCP server.
+
+Example `openadt-export.yaml`:
+
+```yaml
+system: DEV
+target: ~/Downloads/ABAP
+packages:
+  - ZPKG
+  - ZAPP_*
+exclude:
+  - ZAPP_TEST*
+jobs: 4
+```
+
+```bash
+openadt export --config openadt-export.yaml --dry-run
+openadt export --config openadt-export.yaml
+openadt export --config openadt-export.yaml --refresh
+```
+
+The first phase inventories directories and files. Once the sweep finishes,
+the exporter reports completed/total files and resumes verified local files
+automatically on subsequent runs. `--refresh` forces downloading again.
+The output preserves the SAP virtual AFF directory structure and file text.
+See [export spec](../specs/export.md).
 
 <a id="first-setup"></a>
 
